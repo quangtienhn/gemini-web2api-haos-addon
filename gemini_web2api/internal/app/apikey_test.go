@@ -35,7 +35,6 @@ func TestRequireAPIKeyAcceptsGoogleSDKForms(t *testing.T) {
 	}
 }
 
-
 func TestInitAPIKeyReadsEnvironment(t *testing.T) {
 	savedKey := getAPIKey()
 	savedLocked := apiKeyLocked

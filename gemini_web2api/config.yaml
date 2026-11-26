@@ -1,7 +1,7 @@
-name: "Gemini Web2API"
-version: "4.33.2"
+﻿name: "Gemini Web2API"
+version: "4.35.0"
 slug: "gemini_web2api"
-description: "OpenAI/Gemini-compatible API proxy over Gemini Web, with Admin UI (Ingress)."
+description: "OpenAI/Gemini-compatible API proxy over Gemini Web, with Admin UI (LAN access, Ingress disabled)."
 url: "https://github.com/quangtienhn/gemini-web2api-haos-addon/tree/main/gemini_web2api"
 image: "ghcr.io/quangtienhn/gemini-web2api-haos"
 arch:
@@ -11,19 +11,24 @@ startup: services
 boot: auto
 init: false
 stage: experimental
-ingress: true
+ingress: false
 ingress_port: 8083
 ingress_stream: true
 panel_icon: "mdi:robot"
 panel_title: "Gemini Web2API"
 panel_admin: true
+webui: "http://[HOST]:[PORT:8083]/admin"
 ports:
   8083/tcp: 8083
+  8084/tcp: 8084
 ports_description:
-  8083/tcp: "OpenAI-compatible API (LAN); Admin UI is also protected by its own authentication"
+  8083/tcp: "Gemini Web2API LAN API and Admin UI"
+  8084/tcp: "Gemini Image Adapter LAN API"
 map:
   - data:rw
 options:
+  admin_password: null
+  adapter_api_key: null
   admin_token: null
   api_key: ""
   disable_media_generation: true
@@ -32,6 +37,8 @@ options:
   disable_proxy_pool: true
   cors_allow_origins: []
 schema:
+  admin_password: "password"
+  adapter_api_key: "password"
   admin_token: "password"
   api_key: "password"
   disable_media_generation: "bool"

@@ -7,8 +7,8 @@ import (
 
 func TestValidateRemoteURL(t *testing.T) {
 	cases := []struct {
-		url  string
-		ok   bool
+		url string
+		ok  bool
 	}{
 		{"https://example.com/img.png", true},
 		{"http://example.com/img.png", true},

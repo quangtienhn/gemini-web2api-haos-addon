@@ -76,10 +76,10 @@ var blockedHostSuffixes = []string{
 }
 
 var blockedHostNames = map[string]bool{
-	"localhost":               true,
-	"metadata":                true,
+	"localhost":                true,
+	"metadata":                 true,
 	"metadata.google.internal": true,
-	"instance-data":           true,
+	"instance-data":            true,
 }
 
 // isBlockedIP 判断地址是否禁止访问（回环/私有/link-local/组播/保留）。
@@ -298,7 +298,6 @@ func getFetchTLSClient() (tls_client.HttpClient, error) {
 	})
 	return fetchTLSClient, fetchTLSErr
 }
-
 
 // isPrivateIP 保留旧名字，供既有测试使用。
 func isPrivateIP(ip net.IP) bool { return isBlockedIP(ip) }

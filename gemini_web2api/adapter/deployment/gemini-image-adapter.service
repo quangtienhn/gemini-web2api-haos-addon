@@ -1,0 +1,21 @@
+[Unit]
+Description=Gemini Image Adapter (Home Assistant -> CLIProxyAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cliproxyapi
+Group=cliproxyapi
+WorkingDirectory=/opt/gemini-image-adapter
+EnvironmentFile=/opt/gemini-image-adapter/.env
+ExecStart=/usr/bin/python3 /opt/gemini-image-adapter/app.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/gemini-image-adapter
+
+[Install]
+WantedBy=multi-user.target

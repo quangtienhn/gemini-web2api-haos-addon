@@ -45,6 +45,11 @@ func initAPIKey(flagKey string) string {
 		apiKeyRuntime.Store(flagKey)
 		return flagKey
 	}
+	if env := os.Getenv("WEB2API_API_KEY"); env != "" {
+		apiKeyLocked = true
+		apiKeyRuntime.Store(env)
+		return env
+	}
 	if env := os.Getenv("API_KEY"); env != "" {
 		apiKeyLocked = true
 		apiKeyRuntime.Store(env)

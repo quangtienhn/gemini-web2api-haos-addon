@@ -31,6 +31,14 @@ func newSessionToken() string {
 //  2. Authorization: Bearer <admin_token>
 //  3. ?token=<admin_token> query param (for embedded HTML <a href> use)
 func authOK(r *http.Request) bool {
+	if hasAdminPassword() || passwordModeLocked() {
+		// Password mode: only session cookie grants access. Internal admin_token
+		// is disabled to avoid bypass, even if the hash file is corrupt/missing.
+		if c, err := r.Cookie(sessionCookieName); err == nil && validSession(c.Value) {
+			return true
+		}
+		return false
+	}
 	if cfg.AdminToken == "" {
 		// Fail closed: no admin token configured => no admin access.
 		return false
@@ -47,6 +55,9 @@ func authOK(r *http.Request) bool {
 }
 
 func bearerAuthOK(r *http.Request) bool {
+	if hasAdminPassword() || passwordModeLocked() {
+		return false
+	}
 	if cfg.AdminToken == "" {
 		return false
 	}
@@ -99,20 +110,37 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Token string `json:"token"`
+		Token    string `json:"token"`
+		Password string `json:"password"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "bad json"})
 		return
 	}
-	if cfg.AdminToken == "" {
-		writeJSON(w, 401, map[string]string{"error": "admin token not configured"})
-		return
-	}
-	if subtle.ConstantTimeCompare([]byte(req.Token), []byte(cfg.AdminToken)) != 1 {
-		loginGuard.fail(ip, now, cfg.LoginRateLimit, time.Duration(cfg.LoginRateWindowSec)*time.Second)
-		writeJSON(w, 401, map[string]string{"error": "invalid token"})
-		return
+
+	// Password mode takes precedence when configured.
+	if hasAdminPassword() || passwordModeLocked() {
+		if req.Password == "" {
+			loginGuard.fail(ip, now, cfg.LoginRateLimit, time.Duration(cfg.LoginRateWindowSec)*time.Second)
+			writeJSON(w, 401, map[string]string{"error": "invalid credentials"})
+			return
+		}
+		if !verifyAdminPassword(req.Password) {
+			loginGuard.fail(ip, now, cfg.LoginRateLimit, time.Duration(cfg.LoginRateWindowSec)*time.Second)
+			writeJSON(w, 401, map[string]string{"error": "invalid credentials"})
+			return
+		}
+	} else {
+		// Legacy token mode.
+		if cfg.AdminToken == "" {
+			writeJSON(w, 401, map[string]string{"error": "admin token not configured"})
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(req.Token), []byte(cfg.AdminToken)) != 1 {
+			loginGuard.fail(ip, now, cfg.LoginRateLimit, time.Duration(cfg.LoginRateWindowSec)*time.Second)
+			writeJSON(w, 401, map[string]string{"error": "invalid token"})
+			return
+		}
 	}
 	loginGuard.success(ip)
 	tok := newSessionToken()
@@ -128,6 +156,52 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	})
 	csrfTok := newCSRFToken()
 	setCSRFCookie(w, r, csrfTok)
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+// handleAdminPassword allows changing the admin password when authenticated.
+// Requires current password (in password mode) or admin token (in token mode).
+func handleAdminPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch {
+		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, cfg.MaxAdminBodyBytes))
+	if err != nil {
+		writeJSON(w, 400, map[string]string{"error": "bad body"})
+		return
+	}
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "bad json"})
+		return
+	}
+	if hasAdminPassword() || passwordModeLocked() {
+		if !verifyAdminPassword(req.CurrentPassword) {
+			writeJSON(w, 401, map[string]string{"error": "invalid current password"})
+			return
+		}
+	} else if cfg.AdminToken != "" {
+		// token mode: require token in body
+		if subtle.ConstantTimeCompare([]byte(req.CurrentPassword), []byte(cfg.AdminToken)) != 1 {
+			writeJSON(w, 401, map[string]string{"error": "invalid current token"})
+			return
+		}
+	} else {
+		writeJSON(w, 401, map[string]string{"error": "admin auth not configured"})
+		return
+	}
+	if len(req.NewPassword) < adminPasswordMinLen {
+		writeJSON(w, 400, map[string]string{"error": fmt.Sprintf("new password too short (min %d)", adminPasswordMinLen)})
+		return
+	}
+	if err := setAdminPassword(req.NewPassword); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to set password"})
+		return
+	}
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
@@ -794,12 +868,13 @@ func errorBreakdown(since int64) []map[string]interface{} {
 
 // handleAdminLogs — GET /admin/api/logs (or DELETE /admin/api/logs)
 // Query parameters:
-//   tail: number of log entries (default 100, max 1000)
-//   since_id: return entries with ID > since_id
-//   source: filter by subsystem (e.g. rotate, cookie, bl, db)
-//   level: filter by level (INFO, WARN, ERROR)
-//   q: search keyword
-//   format: "text" (returns plain text logs) or "json" (default, structured JSON)
+//
+//	tail: number of log entries (default 100, max 1000)
+//	since_id: return entries with ID > since_id
+//	source: filter by subsystem (e.g. rotate, cookie, bl, db)
+//	level: filter by level (INFO, WARN, ERROR)
+//	q: search keyword
+//	format: "text" (returns plain text logs) or "json" (default, structured JSON)
 func handleAdminBackup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, 405, map[string]string{"error": "method not allowed"})

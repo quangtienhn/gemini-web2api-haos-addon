@@ -95,10 +95,10 @@ type Config struct {
 	LoginRateWindowSec int `json:"login_rate_window_sec"`
 
 	// 请求体上限（字节）。按端点分组，避免用一个值同时卡住文本和视频。
-	MaxChatBodyBytes   int64 `json:"max_chat_body_bytes"`   // /v1/chat/completions, /v1/responses, /v1beta
-	MaxVideoBodyBytes  int64 `json:"max_video_body_bytes"`  // /v1/videos
-	MaxAdminBodyBytes  int64 `json:"max_admin_body_bytes"`  // /admin/api
-	MaxMCPBodyBytes    int64 `json:"max_mcp_body_bytes"`    // /mcp
+	MaxChatBodyBytes  int64 `json:"max_chat_body_bytes"`  // /v1/chat/completions, /v1/responses, /v1beta
+	MaxVideoBodyBytes int64 `json:"max_video_body_bytes"` // /v1/videos
+	MaxAdminBodyBytes int64 `json:"max_admin_body_bytes"` // /admin/api
+	MaxMCPBodyBytes   int64 `json:"max_mcp_body_bytes"`   // /mcp
 	// MaxMediaDownloadBytes 限制从上游下载的图片/视频体积，默认 256 MiB。
 	MaxMediaDownloadBytes int64 `json:"max_media_download_bytes"`
 	// MaxTotalUploadBytes 限制单次请求里所有内联附件的总字节数，默认 64 MiB。

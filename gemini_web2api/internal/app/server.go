@@ -1,4 +1,4 @@
-package app
+﻿package app
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const Version = "4.33.2"
+const Version = "4.35.0"
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	body, _ := json.Marshal(data)
@@ -59,21 +59,21 @@ func handleOptions(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
-// buildUsage 用 tiktoken 算 token 数，跟 requests 表里记的口径保持一致。
-// responsesAPI=true 时用 /v1/responses 的字段名（input_tokens/output_tokens）。
+// buildUsage ç”¨ tiktoken ç®— token æ•°ï¼Œè·Ÿ requests è¡¨é‡Œè®°çš„å£å¾„ä¿æŒä¸€è‡´ã€‚
+// responsesAPI=true æ—¶ç”¨ /v1/responses çš„å­—æ®µåï¼ˆinput_tokens/output_tokensï¼‰ã€‚
 func buildUsage(prompt, text string, responsesAPI bool) map[string]int {
 	return buildUsageWithReasoning(prompt, text, "", responsesAPI)
 }
 
-// buildUsageWithReasoning 在 usage 里单列思考链的 token 数。
+// buildUsageWithReasoning åœ¨ usage é‡Œå•åˆ—æ€è€ƒé“¾çš„ token æ•°ã€‚
 //
-// 思考链**不计入** completion_tokens：它是模型自己的推理过程，客户端默认不展示，
-// 算进去等于让用户为看不见的输出买单（下游 newapi 是按 completion_tokens 计费的）。
-// 单列在 completion_tokens_details.reasoning_tokens 里，跟 OpenAI 的做法一致，
-// 想计费的人自己加。
+// æ€è€ƒé“¾**ä¸è®¡å…¥** completion_tokensï¼šå®ƒæ˜¯æ¨¡åž‹è‡ªå·±çš„æŽ¨ç†è¿‡ç¨‹ï¼Œå®¢æˆ·ç«¯é»˜è®¤ä¸å±•ç¤ºï¼Œ
+// ç®—è¿›åŽ»ç­‰äºŽè®©ç”¨æˆ·ä¸ºçœ‹ä¸è§çš„è¾“å‡ºä¹°å•ï¼ˆä¸‹æ¸¸ newapi æ˜¯æŒ‰ completion_tokens è®¡è´¹çš„ï¼‰ã€‚
+// å•åˆ—åœ¨ completion_tokens_details.reasoning_tokens é‡Œï¼Œè·Ÿ OpenAI çš„åšæ³•ä¸€è‡´ï¼Œ
+// æƒ³è®¡è´¹çš„äººè‡ªå·±åŠ ã€‚
 func buildUsageWithReasoning(prompt, text, reasoning string, responsesAPI bool) map[string]int {
-	// 媒体产物是 base64 data URL，上百万字符。不计进 output token：那是二进制内容，
-	// 按 token 计费等于让用户为看不见的字节买单，下游 newapi 按 output token 收钱。
+	// åª’ä½“äº§ç‰©æ˜¯ base64 data URLï¼Œä¸Šç™¾ä¸‡å­—ç¬¦ã€‚ä¸è®¡è¿› output tokenï¼šé‚£æ˜¯äºŒè¿›åˆ¶å†…å®¹ï¼Œ
+	// æŒ‰ token è®¡è´¹ç­‰äºŽè®©ç”¨æˆ·ä¸ºçœ‹ä¸è§çš„å­—èŠ‚ä¹°å•ï¼Œä¸‹æ¸¸ newapi æŒ‰ output token æ”¶é’±ã€‚
 	in, out := countTokens(prompt), countTokens(stripDataURLs(text))
 	if responsesAPI {
 		return map[string]int{
@@ -93,11 +93,11 @@ func buildUsageWithReasoning(prompt, text, reasoning string, responsesAPI bool) 
 	return u
 }
 
-// rejectUnsupported 检查客户端传了但我们兑现不了的字段。
+// rejectUnsupported æ£€æŸ¥å®¢æˆ·ç«¯ä¼ äº†ä½†æˆ‘ä»¬å…‘çŽ°ä¸äº†çš„å­—æ®µã€‚
 //
-// 只拦"静默忽略会让客户端拿到错误结果"的：n>1 少给候选、图片输入被丢掉会
-// 让模型答非所问。采样类参数（temperature/top_p/max_tokens/...）上游根本
-// 没有对应旋钮，收下忽略即可，报错反而会挡住正常客户端。
+// åªæ‹¦"é™é»˜å¿½ç•¥ä¼šè®©å®¢æˆ·ç«¯æ‹¿åˆ°é”™è¯¯ç»“æžœ"çš„ï¼šn>1 å°‘ç»™å€™é€‰ã€å›¾ç‰‡è¾“å…¥è¢«ä¸¢æŽ‰ä¼š
+// è®©æ¨¡åž‹ç­”éžæ‰€é—®ã€‚é‡‡æ ·ç±»å‚æ•°ï¼ˆtemperature/top_p/max_tokens/...ï¼‰ä¸Šæ¸¸æ ¹æœ¬
+// æ²¡æœ‰å¯¹åº”æ—‹é’®ï¼Œæ”¶ä¸‹å¿½ç•¥å³å¯ï¼ŒæŠ¥é”™åè€Œä¼šæŒ¡ä½æ­£å¸¸å®¢æˆ·ç«¯ã€‚
 func rejectUnsupported(req map[string]interface{}, messages []map[string]interface{}) error {
 	if n, ok := req["n"].(float64); ok && n > 1 {
 		return fmt.Errorf("n=%d not supported: upstream returns a single candidate", int(n))
@@ -114,15 +114,15 @@ func rejectUnsupported(req map[string]interface{}, messages []map[string]interfa
 			}
 			switch getStr(cm, "type") {
 			case "image_url", "input_image":
-				// 有 cookie 就能收：图会被上传成附件再引用。匿名不行 —— 传得上去，
-				// 但一引用就被服务端拒，收下只会让客户端拿到一个看不懂的失败。
+				// æœ‰ cookie å°±èƒ½æ”¶ï¼šå›¾ä¼šè¢«ä¸Šä¼ æˆé™„ä»¶å†å¼•ç”¨ã€‚åŒ¿åä¸è¡Œ â€”â€” ä¼ å¾—ä¸ŠåŽ»ï¼Œ
+				// ä½†ä¸€å¼•ç”¨å°±è¢«æœåŠ¡ç«¯æ‹’ï¼Œæ”¶ä¸‹åªä¼šè®©å®¢æˆ·ç«¯æ‹¿åˆ°ä¸€ä¸ªçœ‹ä¸æ‡‚çš„å¤±è´¥ã€‚
 				if !hasCookie() {
 					return fmt.Errorf("image input needs a Google account cookie: anonymous " +
 						"uploads succeed but referencing them in a conversation is rejected " +
 						"upstream. Add a cookie in the admin panel (Cookie pool)")
 				}
 			case "video_url", "input_video":
-				// 视频跟图片同理：登录态才能引用，匿名一引用就 1100。
+				// è§†é¢‘è·Ÿå›¾ç‰‡åŒç†ï¼šç™»å½•æ€æ‰èƒ½å¼•ç”¨ï¼ŒåŒ¿åä¸€å¼•ç”¨å°± 1100ã€‚
 				if !hasCookie() {
 					return fmt.Errorf("video input needs a Google account cookie: anonymous " +
 						"uploads succeed but referencing them in a conversation is rejected " +
@@ -140,38 +140,38 @@ func callGemini(prompt, latest string, mc ModelConfig, tools []map[string]interf
 	images []pendingUpload, onDelta, onReasoning func(string)) (string, []ToolCall, *StreamResult, error) {
 	res, err := streamGenerateWithFiles(prompt, latest, mc, images, onDelta, onReasoning)
 	if err != nil {
-		// res 非 nil：失败时它只带归属（哪个号 / 哪个出口），给 recordRequest 用
+		// res éž nilï¼šå¤±è´¥æ—¶å®ƒåªå¸¦å½’å±žï¼ˆå“ªä¸ªå· / å“ªä¸ªå‡ºå£ï¼‰ï¼Œç»™ recordRequest ç”¨
 		return "", nil, res, err
 	}
 	text := extractResponseText(res.Raw)
-	// 画布：HTML 文档内联在响应里（不像图/乐要下载），从 immersive 结构里抠出来。
-	// 标准文本提取只拿到 preamble（"I will generate…"），文档在 inner[4][0][30]…，
-	// 用 extractCanvasDoc 单独取。
+	// ç”»å¸ƒï¼šHTML æ–‡æ¡£å†…è”åœ¨å“åº”é‡Œï¼ˆä¸åƒå›¾/ä¹è¦ä¸‹è½½ï¼‰ï¼Œä»Ž immersive ç»“æž„é‡ŒæŠ å‡ºæ¥ã€‚
+	// æ ‡å‡†æ–‡æœ¬æå–åªæ‹¿åˆ° preambleï¼ˆ"I will generateâ€¦"ï¼‰ï¼Œæ–‡æ¡£åœ¨ inner[4][0][30]â€¦ï¼Œ
+	// ç”¨ extractCanvasDoc å•ç‹¬å–ã€‚
 	if mc.Tool == toolCanvas {
 		doc := extractCanvasDoc(res.Raw)
 		if doc == "" {
 			return "", nil, res, fmt.Errorf("canvas generation failed: no HTML document in response (raw %d bytes)", len(res.Raw))
 		}
 		if text != "" && !strings.Contains(doc, text) {
-			return text + "\n\n" + doc, nil, res, nil // preamble + 文档
+			return text + "\n\n" + doc, nil, res, nil // preamble + æ–‡æ¡£
 		}
 		return doc, nil, res, nil
 	}
-	// 媒体模型（生图/音乐）：生成 200 了但产物字节没取回来，直接报错而不是返回一个
-	// 只有文字没有图的半成品 —— 客户端要的就是那张图/那段乐。
+	// åª’ä½“æ¨¡åž‹ï¼ˆç”Ÿå›¾/éŸ³ä¹ï¼‰ï¼šç”Ÿæˆ 200 äº†ä½†äº§ç‰©å­—èŠ‚æ²¡å–å›žæ¥ï¼Œç›´æŽ¥æŠ¥é”™è€Œä¸æ˜¯è¿”å›žä¸€ä¸ª
+	// åªæœ‰æ–‡å­—æ²¡æœ‰å›¾çš„åŠæˆå“ â€”â€” å®¢æˆ·ç«¯è¦çš„å°±æ˜¯é‚£å¼ å›¾/é‚£æ®µä¹ã€‚
 	if mc.Tool == toolImage || mc.Tool == toolMusic || mc.Tool == toolVideo {
 		if len(res.Artifacts) == 0 {
 			cause := res.MediaErr
 			if cause == nil {
-				cause = errors.New("媒体产物取回失败")
+				cause = errors.New("åª’ä½“äº§ç‰©å–å›žå¤±è´¥")
 			}
 			return "", nil, res, fmt.Errorf("media generation succeeded but artifact retrieval failed: %w", cause)
 		}
-		// 产物以 base64 data URL 追加到正文（可能没正文，只有图/乐/视频）。
+		// äº§ç‰©ä»¥ base64 data URL è¿½åŠ åˆ°æ­£æ–‡ï¼ˆå¯èƒ½æ²¡æ­£æ–‡ï¼Œåªæœ‰å›¾/ä¹/è§†é¢‘ï¼‰ã€‚
 		text = appendArtifactMarkdown(text, res.Artifacts)
 		return text, nil, res, nil
 	}
-	// 文本模型被上游切去生图 / 音乐（#105）：产物照样附在正文后面。
+	// æ–‡æœ¬æ¨¡åž‹è¢«ä¸Šæ¸¸åˆ‡åŽ»ç”Ÿå›¾ / éŸ³ä¹ï¼ˆ#105ï¼‰ï¼šäº§ç‰©ç…§æ ·é™„åœ¨æ­£æ–‡åŽé¢ã€‚
 	if len(res.Artifacts) > 0 {
 		var toolCalls []ToolCall
 		if len(tools) > 0 {
@@ -180,19 +180,19 @@ func callGemini(prompt, latest string, mc ModelConfig, tools []map[string]interf
 		return appendArtifactMarkdown(text, res.Artifacts), toolCalls, res, nil
 	}
 	if text == "" {
-		// 上游拒绝时只回一个结束帧、没有内容帧（实测被拒时 raw 仅 216
-		// 字节）。这种情况必须报错：以前会当成空回复返回 200 + content:null，
-		// 客户端看不出请求其实失败了。
-		// 注意不能用 BardErrorInfo 判错 —— 正常响应的结束帧里也带这个码。
+		// ä¸Šæ¸¸æ‹’ç»æ—¶åªå›žä¸€ä¸ªç»“æŸå¸§ã€æ²¡æœ‰å†…å®¹å¸§ï¼ˆå®žæµ‹è¢«æ‹’æ—¶ raw ä»… 216
+		// å­—èŠ‚ï¼‰ã€‚è¿™ç§æƒ…å†µå¿…é¡»æŠ¥é”™ï¼šä»¥å‰ä¼šå½“æˆç©ºå›žå¤è¿”å›ž 200 + content:nullï¼Œ
+		// å®¢æˆ·ç«¯çœ‹ä¸å‡ºè¯·æ±‚å…¶å®žå¤±è´¥äº†ã€‚
+		// æ³¨æ„ä¸èƒ½ç”¨ BardErrorInfo åˆ¤é”™ â€”â€” æ­£å¸¸å“åº”çš„ç»“æŸå¸§é‡Œä¹Ÿå¸¦è¿™ä¸ªç ã€‚
 		return "", nil, res, fmt.Errorf("upstream returned no content frame (raw %d bytes)", len(res.Raw))
 	}
 	var toolCalls []ToolCall
 	if len(tools) > 0 {
 		text, toolCalls = parseToolCalls(text)
 	}
-	// 回复只有一个解析不了的 ```tool_call``` 围栏（JSON 写坏 / 没有工具名）时，
-	// parseToolCalls 剥掉围栏后正文为空、也没有调用。跟 callGeminiConv 一样报错，
-	// 不能回 200 + content:null 且不带 tool_calls —— 客户端看不出请求其实失败了。
+	// å›žå¤åªæœ‰ä¸€ä¸ªè§£æžä¸äº†çš„ ```tool_call``` å›´æ ï¼ˆJSON å†™å / æ²¡æœ‰å·¥å…·åï¼‰æ—¶ï¼Œ
+	// parseToolCalls å‰¥æŽ‰å›´æ åŽæ­£æ–‡ä¸ºç©ºã€ä¹Ÿæ²¡æœ‰è°ƒç”¨ã€‚è·Ÿ callGeminiConv ä¸€æ ·æŠ¥é”™ï¼Œ
+	// ä¸èƒ½å›ž 200 + content:null ä¸”ä¸å¸¦ tool_calls â€”â€” å®¢æˆ·ç«¯çœ‹ä¸å‡ºè¯·æ±‚å…¶å®žå¤±è´¥äº†ã€‚
 	if text == "" && len(toolCalls) == 0 {
 		return "", nil, res, fmt.Errorf("upstream reply had only an unparseable tool_call block (raw %d bytes)", len(res.Raw))
 	}
@@ -200,11 +200,11 @@ func callGemini(prompt, latest string, mc ModelConfig, tools []map[string]interf
 }
 
 // recordRequest writes one row of metadata to the requests table.
-// Privacy: the prompt/response strings themselves are never persisted —
+// Privacy: the prompt/response strings themselves are never persisted â€”
 // only their length, model name, latency, status, and proxy info.
 func recordRequest(endpoint, model, prompt, response string, res *StreamResult, status int, errStr string, stream bool) {
-	// 媒体产物是超长 base64，剥掉再算 token/长度：既不让它污染统计，也免得在请求线程里
-	// 对上百万字符跑 tiktoken 白白拖慢。
+	// åª’ä½“äº§ç‰©æ˜¯è¶…é•¿ base64ï¼Œå‰¥æŽ‰å†ç®— token/é•¿åº¦ï¼šæ—¢ä¸è®©å®ƒæ±¡æŸ“ç»Ÿè®¡ï¼Œä¹Ÿå…å¾—åœ¨è¯·æ±‚çº¿ç¨‹é‡Œ
+	// å¯¹ä¸Šç™¾ä¸‡å­—ç¬¦è·‘ tiktoken ç™½ç™½æ‹–æ…¢ã€‚
 	response = stripDataURLs(response)
 	r := &RequestRow{
 		TS:            time.Now().Unix(),
@@ -280,7 +280,7 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 图片先解出来带着，真正上传要等挑完账号和出口（见 streamGenerate）。
+	// å›¾ç‰‡å…ˆè§£å‡ºæ¥å¸¦ç€ï¼ŒçœŸæ­£ä¸Šä¼ è¦ç­‰æŒ‘å®Œè´¦å·å’Œå‡ºå£ï¼ˆè§ streamGenerateï¼‰ã€‚
 	images, err := collectImages(messages, "")
 	if err != nil {
 		writeJSON(w, 400, map[string]interface{}{"error": map[string]string{
@@ -303,9 +303,9 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	cid := "chatcmpl-" + randHex(12)
 	created := time.Now().Unix()
 
-	// 带 tools 时正文过一道围栏闸门：```tool_call``` 块要完整文本才能解析，
-	// 直接转发会把围栏原文推给客户端，所以只放行确定不在围栏里的部分。
-	// 思考链跟围栏无关，两种情况都直接流。
+	// å¸¦ tools æ—¶æ­£æ–‡è¿‡ä¸€é“å›´æ é—¸é—¨ï¼š```tool_call``` å—è¦å®Œæ•´æ–‡æœ¬æ‰èƒ½è§£æžï¼Œ
+	// ç›´æŽ¥è½¬å‘ä¼šæŠŠå›´æ åŽŸæ–‡æŽ¨ç»™å®¢æˆ·ç«¯ï¼Œæ‰€ä»¥åªæ”¾è¡Œç¡®å®šä¸åœ¨å›´æ é‡Œçš„éƒ¨åˆ†ã€‚
+	// æ€è€ƒé“¾è·Ÿå›´æ æ— å…³ï¼Œä¸¤ç§æƒ…å†µéƒ½ç›´æŽ¥æµã€‚
 	var sse *sseWriter
 	var gate *toolFenceGate
 	var onDelta, onReasoning func(string)
@@ -327,12 +327,12 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	var toolCalls []ToolCall
 	var res *StreamResult
 	if rtCfg().MultiTurn && len(images) == 0 && modelCfg.Tool == 0 {
-		// 多轮：按历史前缀识别续接，命中就只发新消息、历史留服务端。带 tools 也走这条。
+		// å¤šè½®ï¼šæŒ‰åŽ†å²å‰ç¼€è¯†åˆ«ç»­æŽ¥ï¼Œå‘½ä¸­å°±åªå‘æ–°æ¶ˆæ¯ã€åŽ†å²ç•™æœåŠ¡ç«¯ã€‚å¸¦ tools ä¹Ÿèµ°è¿™æ¡ã€‚
 		text, toolCalls, res, err = callGeminiConv(messages, modelCfg, tools, req["tool_choice"], onDelta, onReasoning, conversationOptions{requestScope: conversationRequestScope(r, getStr(req, "prompt_cache_key"), getStr(req, "user"))})
 	} else {
 		text, toolCalls, res, err = callGemini(prompt, latest, modelCfg, tools, images, onDelta, onReasoning)
 	}
-	ka.Stop() // 之后的收尾回到单 goroutine 写；Started() 也要在保活停下后再看
+	ka.Stop() // ä¹‹åŽçš„æ”¶å°¾å›žåˆ°å• goroutine å†™ï¼›Started() ä¹Ÿè¦åœ¨ä¿æ´»åœä¸‹åŽå†çœ‹
 	if err != nil {
 		mde, downgraded := err.(*ModelDowngradedError)
 		status := 502
@@ -341,7 +341,7 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		}
 		recordRequest("chat.completions", modelName, prompt, "", res, status, err.Error(), stream)
 		if sse != nil && sse.Started() {
-			sse.Fail(err) // 已经开流，HTTP 状态码改不了了
+			sse.Fail(err) // å·²ç»å¼€æµï¼ŒHTTP çŠ¶æ€ç æ”¹ä¸äº†äº†
 			return
 		}
 		if downgraded {
@@ -349,8 +349,8 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if ptl, ok := err.(*PromptTooLongError); ok {
-			// 明确报 400 而不是发出去让上游把用户的问题截掉 —— 那样客户端拿到的是
-			// 一个答非所问的 200，根本看不出请求其实没送到。
+			// æ˜Žç¡®æŠ¥ 400 è€Œä¸æ˜¯å‘å‡ºåŽ»è®©ä¸Šæ¸¸æŠŠç”¨æˆ·çš„é—®é¢˜æˆªæŽ‰ â€”â€” é‚£æ ·å®¢æˆ·ç«¯æ‹¿åˆ°çš„æ˜¯
+			// ä¸€ä¸ªç­”éžæ‰€é—®çš„ 200ï¼Œæ ¹æœ¬çœ‹ä¸å‡ºè¯·æ±‚å…¶å®žæ²¡é€åˆ°ã€‚
 			writeJSON(w, 400, map[string]interface{}{"error": map[string]string{
 				"message": ptl.Error(), "type": "invalid_request_error",
 				"code": "context_length_exceeded"}})
@@ -374,8 +374,8 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		msg["content"] = nil
 	}
-	// 思考链走 reasoning_content —— DeepSeek-R1 带起来的事实标准，newapi 和
-	// 主流客户端都认，会渲染成可折叠的「思考过程」。只有 3.1 Pro 有，其余为空。
+	// æ€è€ƒé“¾èµ° reasoning_content â€”â€” DeepSeek-R1 å¸¦èµ·æ¥çš„äº‹å®žæ ‡å‡†ï¼Œnewapi å’Œ
+	// ä¸»æµå®¢æˆ·ç«¯éƒ½è®¤ï¼Œä¼šæ¸²æŸ“æˆå¯æŠ˜å çš„ã€Œæ€è€ƒè¿‡ç¨‹ã€ã€‚åªæœ‰ 3.1 Pro æœ‰ï¼Œå…¶ä½™ä¸ºç©ºã€‚
 	if res != nil && res.Reasoning != "" {
 		msg["reasoning_content"] = res.Reasoning
 	}
@@ -391,15 +391,15 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		if includeUsage {
 			usage = usageOf(prompt, text, res)
 		}
-		// 真流式已发出的不重发，只补尾巴；有 tools 时没走真流式，这里发全量。
-		// 思考链同理，且要在正文之前补——保持「先思考后回答」的顺序。
+		// çœŸæµå¼å·²å‘å‡ºçš„ä¸é‡å‘ï¼Œåªè¡¥å°¾å·´ï¼›æœ‰ tools æ—¶æ²¡èµ°çœŸæµå¼ï¼Œè¿™é‡Œå‘å…¨é‡ã€‚
+		// æ€è€ƒé“¾åŒç†ï¼Œä¸”è¦åœ¨æ­£æ–‡ä¹‹å‰è¡¥â€”â€”ä¿æŒã€Œå…ˆæ€è€ƒåŽå›žç­”ã€çš„é¡ºåºã€‚
 		if res != nil && res.Reasoning != "" {
 			if rest := remainingOf(res.Reasoning, res.EmittedReasoning); rest != "" {
 				sse.SendReasoning(rest)
 			}
 		}
-		// 补尾巴要跟**实际发给客户端的内容**比。走了闸门时 res.Emitted 含围栏
-		// 原文，拿它比前缀会对不上，尾巴会整段丢掉。
+		// è¡¥å°¾å·´è¦è·Ÿ**å®žé™…å‘ç»™å®¢æˆ·ç«¯çš„å†…å®¹**æ¯”ã€‚èµ°äº†é—¸é—¨æ—¶ res.Emitted å«å›´æ 
+		// åŽŸæ–‡ï¼Œæ‹¿å®ƒæ¯”å‰ç¼€ä¼šå¯¹ä¸ä¸Šï¼Œå°¾å·´ä¼šæ•´æ®µä¸¢æŽ‰ã€‚
 		if rest := remainingOf(text, sentText(res, gate)); rest != "" {
 			sse.SendContent(rest)
 		}
@@ -424,7 +424,7 @@ func handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// usageOf 是 buildUsageWithReasoning 的便捷包装，res 可能为 nil。
+// usageOf æ˜¯ buildUsageWithReasoning çš„ä¾¿æ·åŒ…è£…ï¼Œres å¯èƒ½ä¸º nilã€‚
 func usageOf(prompt, text string, res *StreamResult) map[string]int {
 	r := ""
 	if res != nil {
@@ -433,8 +433,8 @@ func usageOf(prompt, text string, res *StreamResult) map[string]int {
 	return buildUsageWithReasoning(prompt, text, r, false)
 }
 
-// remainingText 返回最终文本里还没通过 onDelta 发出去的部分。
-// 真流式下通常只剩末尾一点或为空；没走真流式时 Emitted 为空，返回全文。
+// remainingText è¿”å›žæœ€ç»ˆæ–‡æœ¬é‡Œè¿˜æ²¡é€šè¿‡ onDelta å‘å‡ºåŽ»çš„éƒ¨åˆ†ã€‚
+// çœŸæµå¼ä¸‹é€šå¸¸åªå‰©æœ«å°¾ä¸€ç‚¹æˆ–ä¸ºç©ºï¼›æ²¡èµ°çœŸæµå¼æ—¶ Emitted ä¸ºç©ºï¼Œè¿”å›žå…¨æ–‡ã€‚
 func remainingText(text string, res *StreamResult) string {
 	if res == nil {
 		return text
@@ -442,9 +442,9 @@ func remainingText(text string, res *StreamResult) string {
 	return remainingOf(text, res.Emitted)
 }
 
-// sentText 返回本次实际发给客户端的正文。
-// 没走围栏闸门时就是 deltaTracker 发出的那些；走了闸门时以闸门为准 ——
-// 闸门扣掉了围栏，跟 res.Emitted 不是同一份文本。
+// sentText è¿”å›žæœ¬æ¬¡å®žé™…å‘ç»™å®¢æˆ·ç«¯çš„æ­£æ–‡ã€‚
+// æ²¡èµ°å›´æ é—¸é—¨æ—¶å°±æ˜¯ deltaTracker å‘å‡ºçš„é‚£äº›ï¼›èµ°äº†é—¸é—¨æ—¶ä»¥é—¸é—¨ä¸ºå‡† â€”â€”
+// é—¸é—¨æ‰£æŽ‰äº†å›´æ ï¼Œè·Ÿ res.Emitted ä¸æ˜¯åŒä¸€ä»½æ–‡æœ¬ã€‚
 func sentText(res *StreamResult, gate *toolFenceGate) string {
 	if gate != nil {
 		return gate.Sent()
@@ -455,7 +455,7 @@ func sentText(res *StreamResult, gate *toolFenceGate) string {
 	return res.Emitted
 }
 
-// remainingOf 返回 full 里还没发出去的尾巴。emitted 为空时返回全文。
+// remainingOf è¿”å›ž full é‡Œè¿˜æ²¡å‘å‡ºåŽ»çš„å°¾å·´ã€‚emitted ä¸ºç©ºæ—¶è¿”å›žå…¨æ–‡ã€‚
 func remainingOf(full, emitted string) string {
 	if emitted == "" {
 		return full
@@ -463,7 +463,7 @@ func remainingOf(full, emitted string) string {
 	if strings.HasPrefix(full, emitted) {
 		return full[len(emitted):]
 	}
-	// 前缀对不上（上游中途改写过），已发的收不回，不再补发以免重复。
+	// å‰ç¼€å¯¹ä¸ä¸Šï¼ˆä¸Šæ¸¸ä¸­é€”æ”¹å†™è¿‡ï¼‰ï¼Œå·²å‘çš„æ”¶ä¸å›žï¼Œä¸å†è¡¥å‘ä»¥å…é‡å¤ã€‚
 	return ""
 }
 
@@ -537,17 +537,17 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 	rid := "resp_" + randHex(16)
 	mid := "msg_" + randHex(12)
 
-	// Responses 流式协议要求先 response.output_item.added 声明 item，才能对它发
-	// output_text.delta；漏了 Codex 这类严格客户端会报 "OutputTextDelta without active
-	// item"。msgIndex/nextIdx 给每个 output item 分配序号，ensureMsg 惰性声明 message
-	// item（首个 delta 时才发，纯工具调用轮不发空 message）。
+	// Responses æµå¼åè®®è¦æ±‚å…ˆ response.output_item.added å£°æ˜Ž itemï¼Œæ‰èƒ½å¯¹å®ƒå‘
+	// output_text.deltaï¼›æ¼äº† Codex è¿™ç±»ä¸¥æ ¼å®¢æˆ·ç«¯ä¼šæŠ¥ "OutputTextDelta without active
+	// item"ã€‚msgIndex/nextIdx ç»™æ¯ä¸ª output item åˆ†é…åºå·ï¼ŒensureMsg æƒ°æ€§å£°æ˜Ž message
+	// itemï¼ˆé¦–ä¸ª delta æ—¶æ‰å‘ï¼Œçº¯å·¥å…·è°ƒç”¨è½®ä¸å‘ç©º messageï¼‰ã€‚
 	msgIndex := -1
 	nextIdx := 0
 	var ensureMsg func()
 
-	// 流式要先把头和 response.created 发出去，才能边收边推 delta。
-	// 代价是一旦开了流 HTTP 状态码就改不了了，上游失败只能用 response.failed
-	// 事件告知 —— 跟 /v1/chat/completions 那条路的取舍一致。
+	// æµå¼è¦å…ˆæŠŠå¤´å’Œ response.created å‘å‡ºåŽ»ï¼Œæ‰èƒ½è¾¹æ”¶è¾¹æŽ¨ deltaã€‚
+	// ä»£ä»·æ˜¯ä¸€æ—¦å¼€äº†æµ HTTP çŠ¶æ€ç å°±æ”¹ä¸äº†äº†ï¼Œä¸Šæ¸¸å¤±è´¥åªèƒ½ç”¨ response.failed
+	// äº‹ä»¶å‘ŠçŸ¥ â€”â€” è·Ÿ /v1/chat/completions é‚£æ¡è·¯çš„å–èˆä¸€è‡´ã€‚
 	var writeEvent func(string, interface{})
 	var emitDelta func(string)
 	var gate *toolFenceGate
@@ -556,7 +556,7 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 	if stream {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("X-Accel-Buffering", "no") // 关掉反代对 SSE 的缓冲，见 sse.go
+		w.Header().Set("X-Accel-Buffering", "no") // å…³æŽ‰åä»£å¯¹ SSE çš„ç¼“å†²ï¼Œè§ sse.go
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(200)
 		flusher, _ := w.(http.Flusher)
@@ -607,14 +607,14 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 				"delta":         d,
 			})
 		}
-		// 跟 chat 那条路同一套围栏闸门：带 tools 时只放行确定不在围栏里的部分。
+		// è·Ÿ chat é‚£æ¡è·¯åŒä¸€å¥—å›´æ é—¸é—¨ï¼šå¸¦ tools æ—¶åªæ”¾è¡Œç¡®å®šä¸åœ¨å›´æ é‡Œçš„éƒ¨åˆ†ã€‚
 		if len(tools) == 0 {
 			onDelta = emitDelta
 		} else {
 			gate = newToolFenceGate(emitDelta)
 			onDelta = gate.Push
 		}
-		// 这条路响应头一开始就发了，保活没有锁状态码的代价。
+		// è¿™æ¡è·¯å“åº”å¤´ä¸€å¼€å§‹å°±å‘äº†ï¼Œä¿æ´»æ²¡æœ‰é”çŠ¶æ€ç çš„ä»£ä»·ã€‚
 		ka = startKeepalive(func() {
 			fmt.Fprint(w, ": ping\n\n")
 			if flusher != nil {
@@ -624,8 +624,8 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 		onDelta = ka.guard(onDelta)
 	}
 
-	// onReasoning 传 nil：Responses API 有自己的 reasoning 事件形状，跟 chat 的
-	// reasoning_content 不通用，这条路目前不暴露思考链。
+	// onReasoning ä¼  nilï¼šResponses API æœ‰è‡ªå·±çš„ reasoning äº‹ä»¶å½¢çŠ¶ï¼Œè·Ÿ chat çš„
+	// reasoning_content ä¸é€šç”¨ï¼Œè¿™æ¡è·¯ç›®å‰ä¸æš´éœ²æ€è€ƒé“¾ã€‚
 	var text string
 	var toolCalls []ToolCall
 	var res *StreamResult
@@ -664,8 +664,8 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if ptl, ok := err.(*PromptTooLongError); ok {
-			// 明确报 400 而不是发出去让上游把用户的问题截掉 —— 那样客户端拿到的是
-			// 一个答非所问的 200，根本看不出请求其实没送到。
+			// æ˜Žç¡®æŠ¥ 400 è€Œä¸æ˜¯å‘å‡ºåŽ»è®©ä¸Šæ¸¸æŠŠç”¨æˆ·çš„é—®é¢˜æˆªæŽ‰ â€”â€” é‚£æ ·å®¢æˆ·ç«¯æ‹¿åˆ°çš„æ˜¯
+			// ä¸€ä¸ªç­”éžæ‰€é—®çš„ 200ï¼Œæ ¹æœ¬çœ‹ä¸å‡ºè¯·æ±‚å…¶å®žæ²¡é€åˆ°ã€‚
 			writeJSON(w, 400, map[string]interface{}{"error": map[string]string{
 				"message": ptl.Error(), "type": "invalid_request_error",
 				"code": "context_length_exceeded"}})
@@ -710,14 +710,14 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 
 	recordRequest("responses", modelName, prompt, text, res, 200, "", stream)
 	if stream {
-		// 补上闸门扣住、或前缀 diff 跳过的尾巴，再发终态事件。
+		// è¡¥ä¸Šé—¸é—¨æ‰£ä½ã€æˆ–å‰ç¼€ diff è·³è¿‡çš„å°¾å·´ï¼Œå†å‘ç»ˆæ€äº‹ä»¶ã€‚
 		if rest := remainingOf(text, sentText(res, gate)); rest != "" {
 			emitDelta(rest)
 		}
 		for _, item := range output {
 			switch item["type"] {
 			case "function_call":
-				// 工具调用 item 也要 added → done 包起来，Codex 才认。
+				// å·¥å…·è°ƒç”¨ item ä¹Ÿè¦ added â†’ done åŒ…èµ·æ¥ï¼ŒCodex æ‰è®¤ã€‚
 				idx := nextIdx
 				nextIdx++
 				writeEvent("response.output_item.added", map[string]interface{}{
@@ -734,7 +734,7 @@ func handleResponses(w http.ResponseWriter, r *http.Request) {
 					"type": "response.output_item.done", "output_index": idx, "item": item,
 				})
 			case "message":
-				ensureMsg() // 没有 delta 但有正文时，这里补声明 message item
+				ensureMsg() // æ²¡æœ‰ delta ä½†æœ‰æ­£æ–‡æ—¶ï¼Œè¿™é‡Œè¡¥å£°æ˜Ž message item
 				if cps, ok := item["content"].([]map[string]interface{}); ok {
 					for ci, cp := range cps {
 						writeEvent("response.output_text.done", map[string]interface{}{

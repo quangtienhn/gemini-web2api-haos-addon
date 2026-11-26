@@ -176,7 +176,7 @@ func fetchImage(src, proxyURL string, idx int) (pendingUpload, error) {
 			return pendingUpload{}, fmt.Errorf("image %d: fetch returned HTTP %d", idx, resp.StatusCode)
 		}
 		ctype = resp.Header.Get("Content-Type")
-	body, err = io.ReadAll(io.LimitReader(resp.Body, downloadCap+1))
+		body, err = io.ReadAll(io.LimitReader(resp.Body, downloadCap+1))
 		if err != nil {
 			return pendingUpload{}, fmt.Errorf("image %d: %w", idx, err)
 		}
@@ -199,7 +199,7 @@ func fetchImage(src, proxyURL string, idx int) (pendingUpload, error) {
 			return pendingUpload{}, fmt.Errorf("image %d: fetch returned HTTP %d", idx, resp.StatusCode)
 		}
 		ctype = resp.Header.Get("Content-Type")
-	body, err = io.ReadAll(io.LimitReader(resp.Body, downloadCap+1))
+		body, err = io.ReadAll(io.LimitReader(resp.Body, downloadCap+1))
 		if err != nil {
 			return pendingUpload{}, fmt.Errorf("image %d: %w", idx, err)
 		}
@@ -235,6 +235,7 @@ func fetchImage(src, proxyURL string, idx int) (pendingUpload, error) {
 // newMediaUpload 按 mime 决定这是图片还是视频：
 //   - video/* → 附件类型位 2（跟抓包一致：文件元组 [路径,2,null,"video/mp4"]），上限 maxVideoBytes；
 //   - 其余当图片 → 类型位 1，上限 maxImageBytes。
+//
 // 类型位 1/2 是服务端认媒体种类的开关，填错模型就按错的类型解析附件。
 func newMediaUpload(data []byte, mime string, idx int) (pendingUpload, error) {
 	if len(data) == 0 {

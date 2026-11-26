@@ -80,12 +80,13 @@ func Run() {
 	if *adminToken != "" {
 		cfg.AdminToken = *adminToken
 	}
-	if envTok := os.Getenv("ADMIN_TOKEN"); envTok != "" && cfg.AdminToken == "" {
+	if envTok := os.Getenv("WEB2API_ADMIN_TOKEN"); envTok != "" && cfg.AdminToken == "" {
 		cfg.AdminToken = envTok
 	}
 
 	// boot DB and load proxy pool
 	getDB()
+	initAdminPassword()
 	ensureCookieCipher()
 	migrateCookieEncryption()
 	initRuntimeConfig() // 面板改过的运行时配置盖在启动配置之上
@@ -153,6 +154,7 @@ func Run() {
 		mux.HandleFunc("/admin/", handleAdminUI)
 		mux.HandleFunc("/admin/api/login", handleAdminLogin)
 		mux.HandleFunc("/admin/api/logout", handleAdminLogout)
+		mux.HandleFunc("/admin/api/password", requireAuth(handleAdminPassword))
 		mux.HandleFunc("/admin/api/stats", requireAuth(handleAdminStats))
 		mux.HandleFunc("/admin/api/timeseries", requireAuth(handleAdminTimeseries))
 		mux.HandleFunc("/admin/api/requests", requireAuth(handleAdminRequests))

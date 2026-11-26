@@ -35,3 +35,8 @@ gemini-web2api
 .idea/
 .DS_Store
 Thumbs.db
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
