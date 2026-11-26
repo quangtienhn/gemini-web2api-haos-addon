@@ -2139,23 +2139,25 @@ function renderLogin() {
         border-radius:4px;display:inline-block;
         clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)"></span>
         gemini-web2api</h1>
-      <input id="tokenInput" type="password" placeholder="管理员 Token" />
+      <input id="credentialInput" type="password" placeholder="管理员密码" autocomplete="current-password" />
       <button class="btn" onclick="doLogin()">登录</button>
       <div id="loginErr" class="err"></div>
     </div>`;
-  document.getElementById('tokenInput').focus();
-  document.getElementById('tokenInput').addEventListener('keydown', e => {
+  document.getElementById('credentialInput').focus();
+  document.getElementById('credentialInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
 }
 
 async function doLogin() {
-  const tok = document.getElementById('tokenInput').value;
+  const credential = document.getElementById('credentialInput').value;
   const r = await fetch('api/login', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: tok }) });
+    // Password mode is preferred by the backend. Supplying both fields
+    // keeps legacy token-mode deployments backward compatible.
+    body: JSON.stringify({ password: credential, token: credential }) });
   if (r.ok) renderShell();
-  else document.getElementById('loginErr').textContent = t('Token 错误');
+  else document.getElementById('loginErr').textContent = t('登录凭据错误');
 }
 
 // ── 检查更新 ─────────────────────────────────────────────────────────────
@@ -2388,9 +2390,9 @@ const I18N_EN = {
   '模型': 'Model',
   '匿名': 'Anonymous',
   '直连': 'Direct',
-  '管理员 Token': 'Admin Token',
+  '管理员密码': 'Admin Password',
   '登录': 'Log in',
-  'Token 错误': 'Wrong token',
+  '登录凭据错误': 'Invalid password or token',
   '24 小时请求': '24h Requests',
   '成功率': 'Success rate',
   '平均延迟': 'Avg latency',

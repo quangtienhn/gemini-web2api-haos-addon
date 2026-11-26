@@ -18,24 +18,25 @@ In Home Assistant, open Settings → Apps → Install app → menu → Repositor
 
 | Option | Guidance |
 |---|---|
-| admin_token | Required. Unique random value, minimum 32 characters. |
-| api_key | Separate key for API clients. If left empty, upstream application auto-generates one on first boot. |
+| admin_password | Required. Set a unique password of at least 8 characters for the Admin UI. |
+| adapter_api_key | Optional. Separate key for the Image Adapter; generated and persisted automatically when empty. |
+| api_key | Required. Separate key for API clients; use at least 8 characters. |
 | disable_media_generation | Keep true initially. |
 | disable_url_fetch | Keep true initially. |
 | disable_account_pool | Keep true initially. |
 | disable_proxy_pool | Keep true initially. |
 | cors_allow_origins | Keep empty unless a trusted browser origin is required. |
 
-The service exits before startup if the Admin token is missing or shorter than 32 characters.
+The service exits before startup if the Admin password or API key is missing or shorter than 8 characters. The Admin UI login uses the configured Admin password; legacy token login remains supported only by deployments that have not entered password mode.
 
 ## Network endpoints
 
 - API base URL: http://HOME_ASSISTANT_IP:8083/v1
 - Health check: http://HOME_ASSISTANT_IP:8083/health
 - Admin UI: http://HOME_ASSISTANT_IP:8083/admin
-- Ingress: use the Open Web UI button in Home Assistant.
+- Ingress is disabled; open the Admin UI directly at `http://HOME_ASSISTANT_IP:8083/admin`.
 
-The Admin UI remains protected by its own authentication. It is reachable on the mapped LAN port as well as through Ingress; Ingress is not an exclusive access boundary.
+The Admin UI remains protected by its own authentication and is reachable on the mapped LAN port.
 
 ## Client setup
 

@@ -2,6 +2,19 @@
 
 All notable changes to this HAOS add-on packaging are documented here.
 
+## 4.35.1 - Admin password login UI compatibility
+
+### Fixed
+- Admin UI now displays an Admin Password field and submits the `password` credential expected by password mode.
+- Login submits the same credential in both `password` and `token` fields so legacy token-mode deployments remain compatible; password mode still takes precedence in the backend.
+- Updated Admin UI login error text and English translation.
+- Set the `admin_password` metadata default to an empty string instead of null so Supervisor can validate the required password option before the user configures it.
+- Updated README and DOCS configuration guidance to describe Admin Password mode and direct LAN access.
+
+### Changed
+- Bumped add-on version to 4.35.1. This is a source change only; no image has been built or published.
+
+
 ## 4.35.0 - R3 finalization: single-state auth, recovery procedure, release package
 
 ### Changed

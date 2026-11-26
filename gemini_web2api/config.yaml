@@ -1,5 +1,5 @@
 ﻿name: "Gemini Web2API"
-version: "4.35.0"
+version: "4.35.1"
 slug: "gemini_web2api"
 description: "OpenAI/Gemini-compatible API proxy over Gemini Web, with Admin UI (LAN access, Ingress disabled)."
 url: "https://github.com/quangtienhn/gemini-web2api-haos-addon/tree/main/gemini_web2api"
@@ -27,7 +27,7 @@ ports_description:
 map:
   - data:rw
 options:
-  admin_password: null
+  admin_password: ""
   adapter_api_key: null
   admin_token: null
   api_key: ""
@@ -38,8 +38,8 @@ options:
   cors_allow_origins: []
 schema:
   admin_password: "password"
-  adapter_api_key: "password"
-  admin_token: "password"
+  adapter_api_key: "password?"
+  admin_token: "password?"
   api_key: "password"
   disable_media_generation: "bool"
   disable_url_fetch: "bool"

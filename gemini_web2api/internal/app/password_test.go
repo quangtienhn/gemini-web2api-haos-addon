@@ -471,3 +471,76 @@ func TestLegacyLockUnreadableFailClosed(t *testing.T) {
 		t.Fatal("must fail closed on unreadable legacy lock")
 	}
 }
+
+func TestLoginIntegrationMatrix(t *testing.T) {
+	// Password mode setup
+	_ = setupPWTestDir(t)
+	if err := setAdminPassword("Correct!Pass1"); err != nil {
+		t.Fatal(err)
+	}
+	oldTok := cfg.AdminToken
+	cfg.AdminToken = "legacytokentest12345678901234567890"
+	defer func() { cfg.AdminToken = oldTok }()
+
+	doLogin := func(payload string) int {
+		loginGuard = newLoginLimiter()
+		r := httptest.NewRequest(http.MethodPost, "/admin/api/login", strings.NewReader(payload))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		handleAdminLogin(w, r)
+		return w.Code
+	}
+
+	// Password mode + correct password
+	if code := doLogin(`{"password":"Correct!Pass1"}`); code != 200 {
+		t.Fatalf("expected 200, got %d", code)
+	}
+	// Password mode + wrong password
+	if code := doLogin(`{"password":"Wrong!Pass1"}`); code != 401 {
+		t.Fatalf("expected 401, got %d", code)
+	}
+	// Password mode + correct legacy token only
+	if code := doLogin(`{"token":"legacytokentest12345678901234567890"}`); code != 401 {
+		t.Fatalf("expected 401, got %d", code)
+	}
+	// Password mode + both fields, wrong password but correct token => must reject
+	if code := doLogin(`{"password":"Wrong!Pass1","token":"legacytokentest12345678901234567890"}`); code != 401 {
+		t.Fatalf("expected 401 for wrong password even with correct token, got %d", code)
+	}
+	// Password mode + both fields, correct password
+	if code := doLogin(`{"password":"Correct!Pass1","token":"legacytokentest12345678901234567890"}`); code != 200 {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	// Legacy mode: remove password state, ensure no lock/markers
+	dir := setupPWTestDir(t)
+	_ = dir
+	cfg.AdminToken = "legacytokentest12345678901234567890"
+	// no password state, no legacy artifacts => legacy mode
+	if passwordModeLocked() || hasAdminPassword() {
+		t.Fatal("expected legacy mode")
+	}
+	if code := doLogin(`{"token":"legacytokentest12345678901234567890"}`); code != 200 {
+		t.Fatalf("legacy correct token expected 200, got %d", code)
+	}
+	if code := doLogin(`{"token":"wrong-token"}`); code != 401 {
+		t.Fatalf("legacy wrong token expected 401, got %d", code)
+	}
+
+	// Corrupt auth state => fail closed
+	setupPWTestDir(t)
+	if err := os.WriteFile(filepath.Join(adminDataDir(), "admin_auth.json"), []byte(`{bad`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := doLogin(`{"token":"legacytokentest12345678901234567890"}`); code != 401 {
+		t.Fatalf("corrupt state should fail closed, got %d", code)
+	}
+	// Missing state + legacy artifacts => fail closed
+	dir2 := setupPWTestDir(t)
+	if err := os.WriteFile(filepath.Join(dir2, "admin_password.hash"), []byte("corrupt"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := doLogin(`{"token":"legacytokentest12345678901234567890"}`); code != 401 {
+		t.Fatalf("missing state+legacy artifacts should fail closed, got %d", code)
+	}
+}

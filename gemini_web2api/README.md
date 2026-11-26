@@ -2,11 +2,11 @@
 
 Unofficial Gemini Web API proxy packaged as a Home Assistant OS add-on.
 
-This app exposes an OpenAI-compatible API and an authenticated Admin UI, with Home Assistant Ingress support.
+This app exposes an OpenAI-compatible API and an authenticated Admin UI (direct LAN access; Ingress disabled).
 
 ## Before starting
 
-- Configure a unique Admin token of at least 32 characters.
+- Configure a unique Admin password of at least 8 characters.
 - Configure a separate API key for clients.
 - Keep media generation, URL fetching, account pool and proxy pool disabled until you explicitly need them.
 - Do not expose TCP port 8083 to the public internet.
