@@ -47,7 +47,7 @@ jobs:
           echo "version=${config_version}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: gemini_web2api/go.mod
           cache: true
