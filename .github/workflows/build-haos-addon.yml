@@ -17,12 +17,13 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   validate:
     name: Go tests and static analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -68,6 +69,9 @@ jobs:
     name: Build ${{ matrix.arch }}
     needs: validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -130,6 +134,9 @@ jobs:
       - validate
       - build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -160,4 +167,15 @@ jobs:
             "${IMAGE}:${VERSION}-amd64" \
             "${IMAGE}:${VERSION}-aarch64"
 
-          docker buildx imagetools inspect "${IMAGE}:${VERSION}"
+          manifest_json="$(docker manifest inspect "${IMAGE}:${VERSION}")"
+          echo "${manifest_json}" | jq .
+
+          for arch in amd64 arm64; do
+            if ! echo "${manifest_json}" | jq -e \
+              '.manifests[] | select(.platform.os=="linux" and .platform.architecture=="'"${arch}"'")' >/dev/null; then
+              echo "::error::Manifest is missing linux/${arch}"
+              exit 1
+            fi
+          done
+
+          echo "Manifest verified: linux/amd64 and linux/arm64 present"
