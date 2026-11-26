@@ -51,7 +51,6 @@ jq -n \
   --argjson disable_acct "$disable_acct" \
   --argjson disable_proxy "$disable_proxy" \
   --argjson cors "$cors_json" \
-
   '{
     port: 8083,
     host: "0.0.0.0",

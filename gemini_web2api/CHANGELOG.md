@@ -2,6 +2,17 @@
 
 All notable changes to this HAOS add-on packaging are documented here.
 
+## 4.33.2 - Fix jq command line continuation
+
+### Fixed
+- run.sh: remove blank line inside jq command continuation that broke the filter expression.
+- run.sh: normalize cors_allow_origins to a valid JSON array.
+
+## 4.33.1 - Fix run.sh CORS normalization
+
+### Fixed
+- run.sh: normalize cors_allow_origins to a valid JSON array before passing to jq.
+
 ## 4.33.0 — Initial downstream package
 
 - Add Home Assistant Supervisor add-on metadata and Ingress configuration.

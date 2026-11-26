@@ -1,5 +1,5 @@
 name: "Gemini Web2API"
-version: "4.33.1"
+version: "4.33.2"
 slug: "gemini_web2api"
 description: "OpenAI/Gemini-compatible API proxy over Gemini Web, with Admin UI (Ingress)."
 url: "https://github.com/quangtienhn/gemini-web2api-haos-addon/tree/main/gemini_web2api"
