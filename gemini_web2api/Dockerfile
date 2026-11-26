@@ -2,7 +2,7 @@
 
 # Home Assistant Supervisor 2026.04+ no longer injects BUILD_FROM by default.
 # Use the official multi-architecture Home Assistant base image explicitly.
-ARG BUILD_VERSION=4.33.0
+ARG BUILD_VERSION=4.33.1
 
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 ARG TARGETARCH

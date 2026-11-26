@@ -12,7 +12,7 @@ disable_media="$(bashio::config 'disable_media_generation')"
 disable_url="$(bashio::config 'disable_url_fetch')"
 disable_acct="$(bashio::config 'disable_account_pool')"
 disable_proxy="$(bashio::config 'disable_proxy_pool')"
-cors="$(bashio::config 'cors_allow_origins')"
+raw_cors="$(bashio::config 'cors_allow_origins')"
 
 # Fail early rather than install an Add-on whose Admin UI cannot be accessed.
 if [[ -z "${admin_token}" || "${admin_token}" == "null" || ${#admin_token} -lt 32 ]]; then
@@ -32,13 +32,26 @@ disable_url="$(to_bool "$disable_url")"
 disable_acct="$(to_bool "$disable_acct")"
 disable_proxy="$(to_bool "$disable_proxy")"
 
+# Normalize cors_allow_origins into a valid JSON array of strings.
+# HAOS may return an empty/null/non-JSON value when the option is unset.
+if [[ -z "${raw_cors}" || "${raw_cors}" == "null" ]]; then
+  cors_json='[]'
+else
+  if ! printf '%s' "${raw_cors}" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null 2>&1; then
+    echo "[FATAL] cors_allow_origins must be a JSON array of strings (e.g. [\"https://example.com\"]). Got: ${raw_cors}" >&2
+    exit 1
+  fi
+  cors_json="${raw_cors}"
+fi
+
 jq -n \
   --arg admin_token "$admin_token" \
   --argjson disable_media "$disable_media" \
   --argjson disable_url "$disable_url" \
   --argjson disable_acct "$disable_acct" \
   --argjson disable_proxy "$disable_proxy" \
-  --argjson cors "$cors" \
+  --argjson cors "$cors_json" \
+
   '{
     port: 8083,
     host: "0.0.0.0",
