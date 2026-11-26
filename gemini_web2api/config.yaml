@@ -1,0 +1,62 @@
+name: "Gemini Web2API"
+version: "4.33.0"
+slug: "gemini_web2api"
+description: "OpenAI/Gemini-compatible API proxy over Gemini Web, with Admin UI (Ingress)."
+url: "https://github.com/quangtienhn/gemini-web2api-haos-addon/tree/main/gemini_web2api"
+image: "ghcr.io/quangtienhn/gemini-web2api-haos"
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+init: false
+stage: experimental
+ingress: true
+ingress_port: 8083
+ingress_stream: true
+panel_icon: "mdi:robot"
+panel_title: "Gemini Web2API"
+panel_admin: true
+ports:
+  8083/tcp: 8083
+ports_description:
+  8083/tcp: "OpenAI-compatible API (LAN); Admin UI is also protected by its own authentication"
+map:
+  - data:rw
+options:
+  admin_token: null
+  api_key: ""
+  disable_media_generation: true
+  disable_url_fetch: true
+  disable_account_pool: true
+  disable_proxy_pool: true
+  cors_allow_origins: []
+schema:
+  admin_token: "password"
+  api_key: "password"
+  disable_media_generation: "bool"
+  disable_url_fetch: "bool"
+  disable_account_pool: "bool"
+  disable_proxy_pool: "bool"
+  cors_allow_origins:
+    - "str"
+watchdog: "http://[HOST]:[PORT:8083]/health"
+homeassistant_api: false
+hassio_api: false
+privileged: []
+full_access: false
+apparmor: true
+timeout: 30
+stdin: false
+docker_api: false
+host_network: false
+host_pid: false
+host_ipc: false
+host_dbus: false
+devices: []
+udev: false
+tmpfs: false
+backup: cold
+backup_exclude:
+  - "logs/*"
+environment: {}

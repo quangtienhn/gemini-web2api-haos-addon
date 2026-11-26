@@ -1,0 +1,163 @@
+name: HAOS Add-on Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional version assertion; must match gemini_web2api/config.yaml"
+        required: false
+        default: ""
+        type: string
+      publish_image:
+        description: "Publish the multi-architecture image to GHCR (otherwise build only)"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate:
+    name: Go tests and static analysis
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check and export add-on version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          config_version="$(awk -F '"' '/^version:/ { print $2; exit }' gemini_web2api/config.yaml)"
+          if [ -z "${config_version}" ]; then
+            echo "::error::Could not read version from gemini_web2api/config.yaml"
+            exit 1
+          fi
+          echo "Add-on version: ${config_version}"
+          if [ -n "${REQUESTED_VERSION}" ] && [ "${REQUESTED_VERSION}" != "${config_version}" ]; then
+            echo "::error::Requested version ${REQUESTED_VERSION} does not match config.yaml version ${config_version}"
+            exit 1
+          fi
+          echo "version=${config_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: gemini_web2api/go.mod
+          cache: true
+          cache-dependency-path: gemini_web2api/go.sum
+
+      - name: Run tests
+        working-directory: gemini_web2api
+        run: go test ./...
+
+      - name: Run go vet
+        working-directory: gemini_web2api
+        run: go vet ./...
+
+      - name: Check entrypoint shell syntax
+        run: bash -n gemini_web2api/run.sh
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: aarch64
+            platform: linux/arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The runtime stage executes apk under the target architecture.
+      # QEMU is therefore required for the ARM64 image on an AMD64 runner.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize GHCR image name
+        id: image
+        shell: bash
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          image="ghcr.io/${REPOSITORY_OWNER,,}/gemini-web2api-haos"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_image
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gemini_web2api
+          file: ./gemini_web2api/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_image }}
+          build-args: |
+            BUILD_VERSION=${{ needs.validate.outputs.version }}
+            BUILD_ARCH=${{ matrix.arch }}
+          tags: ${{ steps.image.outputs.image }}:${{ needs.validate.outputs.version }}-${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
+          cache-from: type=gha,scope=haos-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=haos-${{ matrix.arch }}
+
+  publish-manifest:
+    name: Publish multi-architecture manifest
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_image
+    needs:
+      - validate
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize GHCR image name
+        id: image
+        shell: bash
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          image="ghcr.io/${REPOSITORY_OWNER,,}/gemini-web2api-haos"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and verify manifest
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${VERSION}" \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-aarch64"
+
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}"

@@ -1,0 +1,18 @@
+# Third-party notices
+
+## Gemini Web2API Go application
+
+This repository includes and modifies source code from:
+
+- Project: gemini-web2api-go
+- Upstream: https://github.com/zexadev/gemini-web2api-go
+- Upstream license: MIT
+- Source baseline: upstream v4.33.0 / commit 928cace (as recorded in the local project audit)
+- Local hardening work: branch p0-security, commit 3f2122dab7071e9c2be173fa1303c1879f1b73d7
+- Original copyright notice is retained in LICENSE.
+
+The HAOS packaging, Supervisor metadata, Docker build, startup wrapper, workflow, and local hardening changes are maintained as a separate downstream integration. This repository is not the upstream project's official repository.
+
+## Dependencies
+
+Go module dependencies and their licenses are declared by the respective upstream projects and are recorded in go.mod and go.sum. Review dependency licenses before changing or redistributing dependencies.

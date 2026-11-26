@@ -1,0 +1,37 @@
+# Secrets and local configuration
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+cookie.txt
+cookies.txt
+credentials.json
+secrets.json
+
+# Runtime state and databases
+/data/
+/data-*/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+logs/
+*.log
+backups/
+
+# Build artifacts
+dist/
+build/
+*.exe
+gemini-web2api
+
+# Local tooling and IDE
+.tools/
+.gocache/
+.vendor/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
