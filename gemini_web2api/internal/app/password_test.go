@@ -58,9 +58,9 @@ func TestSetAndVerifyAdminPassword(t *testing.T) {
 	if err := setAdminPassword("short"); err == nil {
 		t.Fatal("expected error for short password")
 	}
-	// hash file should have 0600 permissions on unix
+	// authoritative auth state file should have 0600 permissions on unix
 	if runtime.GOOS != "windows" {
-		info, err := os.Stat(filepath.Join(dir, "admin_password.hash"))
+		info, err := os.Stat(filepath.Join(dir, "admin_auth.json"))
 		if err != nil {
 			t.Fatal(err)
 		}
