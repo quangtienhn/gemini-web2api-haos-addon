@@ -119,7 +119,7 @@ func TestStrictBindingSwitchesAccountNotProxy(t *testing.T) {
 	bindAccountProxy(a1, a)
 	bindAccountProxy(a2, b)
 
-	res, err := streamGenerateOnce("hi", "hi", Models["gemini-3.6-flash"], nil, nil, nil, map[int64]bool{})
+	res, err := streamGenerateOnce("hi", "hi", Models["gemini-3.6-flash"], nil, nil, nil, map[int64]bool{}, nil)
 	if err == nil {
 		t.Fatal("出口地址是 127.0.0.1:1，请求不该成功")
 	}
@@ -132,7 +132,7 @@ func TestStrictBindingSwitchesAccountNotProxy(t *testing.T) {
 
 	// 号 2 也不在了：只剩号 1，它的出口满着 → 报绑定出口不可用，不能借 B。
 	_ = accountDelete(a2)
-	_, err = streamGenerateOnce("hi", "hi", Models["gemini-3.6-flash"], nil, nil, nil, map[int64]bool{})
+	_, err = streamGenerateOnce("hi", "hi", Models["gemini-3.6-flash"], nil, nil, nil, map[int64]bool{}, nil)
 	var rle *RateLimitError
 	if !errors.As(err, &rle) || !rle.Bound || rle.ProxyID != a {
 		t.Fatalf("只剩绑在满出口上的号时应报 Bound 429，得到 %v", err)

@@ -245,7 +245,7 @@ func runVideoJobWith(j *videoJob, images []pendingUpload, pin int64, cont *ConvR
 		// An extension stays on the account and conversation of its parent; an exhausted
 		// account is still remembered so new videos skip it.
 		mc.PinAccountID = pin
-		_, _, res, err = videoCall(j.Prompt, j.Prompt, mc, nil, images, nil, nil)
+		_, _, res, err = videoCall(j.Prompt, j.Prompt, mc, nil, images, nil, nil, nil)
 		if errors.Is(err, errVideoQuotaUsed) {
 			markVideoExhausted(pin, videoQuotaReset(err))
 		}
@@ -295,7 +295,7 @@ func callOnVideoAccount(j *videoJob, mc ModelConfig, images []pendingUpload) (*S
 		}
 		skip[acct.ID] = true
 		mc.PinAccountID = acct.ID
-		_, _, res, err = videoCall(j.Prompt, j.Prompt, mc, nil, images, nil, nil)
+		_, _, res, err = videoCall(j.Prompt, j.Prompt, mc, nil, images, nil, nil, nil)
 		if err == nil {
 			return res, nil
 		}

@@ -429,7 +429,7 @@ func (e *pinnedAccountError) Unwrap() error { return e.Err }
 // 自己做。一旦已经吐过内容就不再重试——重试会让客户端收到重复文本。
 func streamGenerate(prompt, latest string, mc ModelConfig,
 	onDelta, onReasoning func(string)) (*StreamResult, error) {
-	return streamGenerateWithFiles(prompt, latest, mc, nil, onDelta, onReasoning)
+	return streamGenerateWithFiles(prompt, latest, mc, nil, onDelta, onReasoning, nil)
 }
 
 // fileRef 是一个已上传附件的引用。
@@ -445,14 +445,14 @@ type fileRef struct {
 // 附件填 inner[0][3]，形状 [[[ref, 1], "文件名"], …]。附件只在登录态可用：
 // 匿名能把文件传上去，但对话里一引用就被服务端回 1100。
 func streamGenerateWithFiles(prompt, latest string, mc ModelConfig, pending []pendingUpload,
-	onDelta, onReasoning func(string)) (*StreamResult, error) {
+	onDelta, onReasoning func(string), trace *RequestTrace) (*StreamResult, error) {
 	// strict_model 换号：被降级的号记冷却、本次排除，换下一个号重来。上限跟 XSRF 换号
 	// 一样是 maxCookieTries——连着几个号都降级，说明池子整体见底，不是撞上个别号。
 	exclude := map[int64]bool{}
 	var res *StreamResult
 	var err error
 	for try := 0; try < maxCookieTries; try++ {
-		next, nextErr := streamGenerateOnce(prompt, latest, mc, pending, onDelta, onReasoning, exclude)
+		next, nextErr := streamGenerateOnce(prompt, latest, mc, pending, onDelta, onReasoning, exclude, trace)
 		var exhausted *ModelDowngradedError
 		if try > 0 && errors.As(nextErr, &exhausted) && exhausted.Reported == "" {
 			// 换号时已经没号可挑：报上一个号真实的降级（带自报模型名），补上解冻时间
@@ -471,7 +471,7 @@ func streamGenerateWithFiles(prompt, latest string, mc ModelConfig, pending []pe
 }
 
 func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pendingUpload,
-	onDelta, onReasoning func(string), exclude map[int64]bool) (*StreamResult, error) {
+	onDelta, onReasoning func(string), exclude map[int64]bool, trace *RequestTrace) (*StreamResult, error) {
 	var files []fileRef
 
 	// 先挑号，再按它上次绑的出口挑代理 —— 同一个账号要尽量固定从同一个 IP 出去，
@@ -826,6 +826,7 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 	var lineCB func(string) error
 	if onDelta != nil || onReasoning != nil || strictCheck != nil {
 		lineCB = func(line string) error {
+			trace.MarkFirstParsedFrame()
 			if strictCheck != nil {
 				if err := strictCheck(line); err != nil {
 					return err
@@ -839,6 +840,7 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 			if onReasoning != nil {
 				if r := reasoningInLine(line); r != "" {
 					if d := rtracker.Push(r); d != "" {
+						trace.MarkFirstSemanticDelta()
 						onReasoning(d)
 					}
 				}
@@ -848,6 +850,7 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 			}
 			for _, t := range renderedTextsInLine(line, false) {
 				if d := tracker.Push(t); d != "" {
+					trace.MarkFirstSemanticDelta()
 					onDelta(d)
 				}
 			}
@@ -868,11 +871,19 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 		var ttfb int64
 		var setCookie []string
 		var err error
+		if attempt == 0 {
+			trace.MarkUpstreamRequestStart()
+		} else {
+			trace.MarkUpstreamAttempt()
+		}
 		if useWC {
 			wcReq.Cookie = cookieStr
 			statusCode, raw, ttfb, setCookie, err = doWebChannelRequest(wcReq, proxyURL, lineCB)
 		} else {
 			statusCode, raw, ttfb, setCookie, err = doGeminiRequest(endpoint, body, geminiHeaders, proxyURL, lineCB)
+		}
+		if ttfb >= 0 {
+			trace.MarkFirstUpstreamByte()
 		}
 		if len(setCookie) > 0 && cookieID > 0 {
 			if merged := mergeSetCookie(cookieStr, setCookie); merged != cookieStr {
@@ -899,6 +910,7 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 			}
 			// 已经往客户端吐过内容就不能重试，否则会重复（思考链也算吐过）。
 			if tracker.emitted != "" || rtracker.emitted != "" {
+				trace.FinishAttempt(0, "upstream_error_partial", "", 0)
 				break
 			}
 			if !retryAfterTimeout(err) {
@@ -906,9 +918,13 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 				break
 			}
 			if attempt < rtCfg().RetryAttempts-1 {
+				d := time.Duration(rtCfg().RetryDelaySec) * time.Second
+				trace.FinishAttempt(0, "upstream_error", fmt.Sprintf("attempt_%d:%v", attempt+1, err), d)
 				logf("retry %d/%d: %v", attempt+1, rtCfg().RetryAttempts, err)
-				time.Sleep(time.Duration(rtCfg().RetryDelaySec) * time.Second)
+				time.Sleep(d)
+				continue
 			}
+			trace.FinishAttempt(0, "upstream_error", "", 0)
 			continue
 		}
 		if statusCode != 200 {
@@ -936,7 +952,9 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 				break
 			}
 			if attempt < rtCfg().RetryAttempts-1 {
-				time.Sleep(time.Duration(rtCfg().RetryDelaySec) * time.Second)
+				d := time.Duration(rtCfg().RetryDelaySec) * time.Second
+				trace.AddRetry(fmt.Sprintf("attempt_%d_status_%d", attempt+1, statusCode), d)
+				time.Sleep(d)
 			}
 			continue
 		}
@@ -953,6 +971,7 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 		// one extra video per attempt (burning daily quota). Once a conversation id
 		// exists, treat it as accepted and let fetchMediaArtifacts poll hNvQHb.
 		if !hasContentFrame(string(raw)) && !videoAccepted(mc.Tool, string(raw)) {
+			trace.AddEmptyFrame()
 			lastErr = fmt.Errorf("upstream returned no content frame (raw %d bytes)", len(raw))
 			if pickedOK {
 				// 记进代理健康度：1155 跟出口质量强相关（干净出口 60+ 次 0 发生，
@@ -975,15 +994,24 @@ func streamGenerateOnce(prompt, latest string, mc ModelConfig, pending []pending
 				break
 			}
 			if attempt < rtCfg().RetryAttempts-1 {
+				d := time.Duration(rtCfg().RetryDelaySec) * time.Second
+				trace.FinishAttempt(statusCode, "failure_reply", fmt.Sprintf("attempt_%d_failure_reply", attempt+1), d)
 				logf("retry %d/%d: %v", attempt+1, rtCfg().RetryAttempts, lastErr)
-				time.Sleep(time.Duration(rtCfg().RetryDelaySec) * time.Second)
+				time.Sleep(d)
+				continue
 			}
+			trace.FinishAttempt(statusCode, "failure_reply", "", 0)
 			continue
 		}
 		if pickedOK {
 			recordProxyResult(picked.ID, true, "")
 		}
 		markCookieByStatus(cookieID, 200, "")
+		trace.FinishAttempt(statusCode, "", "", 0)
+		trace.MarkUpstreamFinished()
+		if resUp := extractUpstreamModel(string(raw)); resUp != "" {
+			trace.SetUpstreamModel(resUp)
+		}
 		result := &StreamResult{
 			Emitted:          tracker.emitted,
 			EmittedReasoning: rtracker.emitted,
@@ -1121,7 +1149,8 @@ func setAuthUserHeaders(h map[string]string, authuser int) {
 // 返回值多了 setCookie：服务端几乎每个响应都在刷新 SIDCC / __Secure-1PSIDCC /
 // __Secure-3PSIDCC，浏览器收下再带回去。一直发旧值的客户端会被判定为过期会话，
 // 实测号活一两小时就失效 —— 所以这些必须收下来并写回账号。
-func doGeminiRequest(endpoint, body string, headers map[string]string, proxyURL string,
+// doGeminiRequest is the upstream HTTP seam; tests may replace it.
+var doGeminiRequest = func(endpoint, body string, headers map[string]string, proxyURL string,
 	onLine func(string) error) (int, []byte, int64, []string, error) {
 	sendAt := time.Now()
 	idle := time.Duration(rtCfg().StreamIdleTimeoutSec) * time.Second

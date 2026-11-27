@@ -293,21 +293,33 @@ const (
 // （后者含围栏原文）。收尾补发尾巴时必须拿这个比，否则前缀对不上，尾巴会丢。
 type toolFenceGate struct {
 	emit    func(string)
-	buf     string // 还没判定完的尾巴
+	buf     string // 还没确认安全的尾巴
 	sent    strings.Builder
 	inFence bool
+	trace   *RequestTrace
 }
 
-func newToolFenceGate(emit func(string)) *toolFenceGate {
-	return &toolFenceGate{emit: emit}
+func newToolFenceGate(emit func(string), trace *RequestTrace) *toolFenceGate {
+	if trace != nil {
+		trace.MarkToolGateActivated()
+	}
+	return &toolFenceGate{emit: emit, trace: trace}
 }
 
-// Sent 返回到目前为止实际发给客户端的全部文本。
+// Sent 返回实际发给客户端的正文。
 func (g *toolFenceGate) Sent() string {
 	if g == nil {
 		return ""
 	}
 	return g.sent.String()
+}
+
+// BufferedBytes returns currently buffered bytes not yet emitted.
+func (g *toolFenceGate) BufferedBytes() int {
+	if g == nil {
+		return 0
+	}
+	return len(g.buf)
 }
 
 func (g *toolFenceGate) send(s string) {
@@ -325,7 +337,7 @@ func (g *toolFenceGate) Push(delta string) {
 		if g.inFence {
 			_, next, ok := toolFenceEnd(g.buf, false)
 			if !ok {
-				return // 围栏还没闭合，整段扣住
+				return // fence not closed yet, keep buffering
 			}
 			g.buf = g.buf[next:]
 			g.inFence = false
@@ -335,6 +347,9 @@ func (g *toolFenceGate) Push(delta string) {
 			g.send(g.buf[:i])
 			g.buf = g.buf[i+len(toolFenceOpen):]
 			g.inFence = true
+			if g.trace != nil {
+				g.trace.MarkToolGateFenceDetected()
+			}
 			continue
 		}
 		keep := partialPrefixLen(g.buf, toolFenceOpen)

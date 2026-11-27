@@ -18,11 +18,12 @@ type sseWriter struct {
 	created int64
 	model   string
 	started bool
+	trace   *RequestTrace
 }
 
-func newSSEWriter(w http.ResponseWriter, id string, created int64, model string) *sseWriter {
+func newSSEWriter(w http.ResponseWriter, id string, created int64, model string, trace *RequestTrace) *sseWriter {
 	f, _ := w.(http.Flusher)
-	return &sseWriter{w: w, flusher: f, id: id, created: created, model: model}
+	return &sseWriter{w: w, flusher: f, id: id, created: created, model: model, trace: trace}
 }
 
 func (s *sseWriter) Started() bool { return s.started }
@@ -64,6 +65,7 @@ func (s *sseWriter) chunk(delta map[string]interface{}, finish interface{}, usag
 	if s.flusher != nil {
 		s.flusher.Flush()
 	}
+	s.trace.MarkFirstClientSSEByte()
 }
 
 // SendContent 发一段正文增量，供 streamGenerate 的 onDelta 回调直接使用。
@@ -83,6 +85,7 @@ func (s *sseWriter) SendContent(delta string) {
 	}
 	s.start()
 	s.chunk(map[string]interface{}{"content": delta}, nil, nil)
+	s.trace.MarkFirstClientContent()
 }
 
 func (s *sseWriter) SendToolCalls(tcs []ToolCall) {
@@ -102,6 +105,8 @@ func (s *sseWriter) SendToolCalls(tcs []ToolCall) {
 		}
 	}
 	s.chunk(map[string]interface{}{"tool_calls": out}, nil, nil)
+	s.trace.MarkFirstToolDelta()
+	s.trace.MarkFirstClientContent()
 }
 
 // Finish 收尾：空 delta + finish_reason，可选 usage chunk，最后 [DONE]。
@@ -151,4 +156,5 @@ func (s *sseWriter) Ping() {
 	if s.flusher != nil {
 		s.flusher.Flush()
 	}
+	s.trace.MarkFirstClientSSEByte()
 }

@@ -11,7 +11,7 @@ import (
 func feed(t *testing.T, chunks []string) string {
 	t.Helper()
 	var got strings.Builder
-	g := newToolFenceGate(func(s string) { got.WriteString(s) })
+	g := newToolFenceGate(func(s string) { got.WriteString(s) }, nil)
 	for _, c := range chunks {
 		g.Push(c)
 	}

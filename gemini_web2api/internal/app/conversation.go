@@ -258,7 +258,7 @@ func convXSRF(conv *convState, proxyURL string) (string, error) {
 // 整条会话绑定 conv.cookie / conv.proxyID，中途不换号不换出口。成功后回填 conv 的
 // cid/rid/rcid/tok26 和 turn+1，供下一轮续接。
 func streamGenerateConv(prompt string, mc ModelConfig, conv *convState,
-	onDelta, onReasoning func(string)) (*StreamResult, error) {
+	onDelta, onReasoning func(string), trace *RequestTrace) (*StreamResult, error) {
 	p, slotOK, slotErr := acquireSlot(conv.proxyID)
 	if !slotOK {
 		return &StreamResult{}, slotErr
@@ -478,7 +478,7 @@ func streamGenerateConv(prompt string, mc ModelConfig, conv *convState,
 // 支持 tools（续接里也解析 ```tool_call``` 围栏）；图片走原单轮路径（callGemini）。
 func callGeminiConv(messages []map[string]interface{}, mc ModelConfig,
 	tools []map[string]interface{}, toolChoice interface{},
-	onDelta, onReasoning func(string), options ...conversationOptions) (string, []ToolCall, *StreamResult, error) {
+	onDelta, onReasoning func(string), trace *RequestTrace, options ...conversationOptions) (string, []ToolCall, *StreamResult, error) {
 	messages = normalizeConversationMessages(messages)
 	var opt conversationOptions
 	if len(options) > 0 {
@@ -537,7 +537,7 @@ func callGeminiConv(messages []map[string]interface{}, mc ModelConfig,
 				}
 			}
 		}
-		res, err = runConversationTurn(prompt, mc, conv, onDelta, onReasoning)
+		res, err = runConversationTurn(prompt, mc, conv, onDelta, onReasoning, trace)
 		// 新会话的号取不到 XSRF（convXSRF 里已记过失败）：排除它，换下一个号。
 		var unusable *convAccountUnusableError
 		if fresh && errors.As(err, &unusable) && unusable.AccountID > 0 {

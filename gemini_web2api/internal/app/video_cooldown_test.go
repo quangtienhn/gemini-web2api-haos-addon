@@ -24,7 +24,7 @@ func withVideoAccounts(t *testing.T, n int, call func(mc ModelConfig) (*StreamRe
 		ids = append(ids, id)
 	}
 	prevCall := videoCall
-	videoCall = func(_, _ string, mc ModelConfig, _ []map[string]interface{}, _ []pendingUpload, _, _ func(string)) (string, []ToolCall, *StreamResult, error) {
+	videoCall = func(_, _ string, mc ModelConfig, _ []map[string]interface{}, _ []pendingUpload, _, _ func(string), _ *RequestTrace) (string, []ToolCall, *StreamResult, error) {
 		res, err := call(mc)
 		return "", nil, res, err
 	}

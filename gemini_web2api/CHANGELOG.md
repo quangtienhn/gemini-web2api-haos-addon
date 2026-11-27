@@ -1,3 +1,13 @@
+## [4.35.2-dev] - 2026-11-27
+
+### Added
+- P0 performance instrumentation: per-request trace IDs, structured `[perf]` summary logs, prompt/tool/body metadata (no prompt/secret logging), upstream/streaming milestones, tool-fence hold metrics, retry/empty-frame counters, and requested/resolved/upstream model correlation.
+- Instrumentation hooks in chat/responses handlers, SSE writer, tool-fence gate, and Gemini upstream request path for HAOS runtime diagnosis.
+
+### Notes
+- Development artifact only. No production config changes, no GHCR publish, no GitHub release/tag.
+- Go/Docker validation may be NOT TESTED in environments without Go/Docker toolchain.
+
 # Changelog
 
 All notable changes to this HAOS add-on packaging are documented here.

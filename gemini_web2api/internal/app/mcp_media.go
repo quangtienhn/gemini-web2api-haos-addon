@@ -71,7 +71,7 @@ func mcpGenerateMedia(model, prompt string, refs []string) (map[string]interface
 		}
 		images = append(images, img)
 	}
-	_, _, res, err := callGemini(prompt, prompt, mc, nil, images, nil, nil)
+	_, _, res, err := callGemini(prompt, prompt, mc, nil, images, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

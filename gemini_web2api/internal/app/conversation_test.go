@@ -118,7 +118,7 @@ func conversationTestRaw(t *testing.T, text string) string {
 func stubConversationTestTurn(t *testing.T, f func(string, ModelConfig, *convState) (*StreamResult, error)) {
 	t.Helper()
 	old := runConversationTurn
-	runConversationTurn = func(prompt string, mc ModelConfig, conv *convState, _, _ func(string)) (*StreamResult, error) {
+	runConversationTurn = func(prompt string, mc ModelConfig, conv *convState, _, _ func(string), _ *RequestTrace) (*StreamResult, error) {
 		return f(prompt, mc, conv)
 	}
 	t.Cleanup(func() { runConversationTurn = old })
@@ -236,7 +236,7 @@ func TestCallGeminiConvSendsAllNewToolAndUserMessages(t *testing.T) {
 		}
 		return &StreamResult{Raw: conversationTestRaw(t, text)}, nil
 	})
-	text, calls, _, err := callGeminiConv(first, mc, tools, "auto", nil, nil, conversationOptions{requestScope: "thread"})
+	text, calls, _, err := callGeminiConv(first, mc, tools, "auto", nil, nil, nil, conversationOptions{requestScope: "thread"})
 	if err != nil || len(calls) != 2 {
 		t.Fatalf("initial tool turn: %q %+v %v", text, calls, err)
 	}
@@ -250,7 +250,7 @@ func TestCallGeminiConvSendsAllNewToolAndUserMessages(t *testing.T) {
 		map[string]interface{}{"role": "tool", "tool_call_id": calls[1].ID, "content": "result-two"},
 		map[string]interface{}{"role": "user", "content": "time-context-message"},
 		map[string]interface{}{"role": "user", "content": "continue-now"})
-	_, _, _, err = callGeminiConv(replay, mc, tools, "auto", nil, nil, conversationOptions{requestScope: "thread"})
+	_, _, _, err = callGeminiConv(replay, mc, tools, "auto", nil, nil, nil, conversationOptions{requestScope: "thread"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,14 +279,14 @@ func TestCallGeminiConvPlainChatAndConsumedHeads(t *testing.T) {
 		st.turn++
 		return &StreamResult{Raw: conversationTestRaw(t, "first-answer")}, nil
 	})
-	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	next := append(append([]map[string]interface{}{}, first...), map[string]interface{}{"role": "assistant", "content": "first-answer"}, map[string]interface{}{"role": "user", "content": "follow-up"})
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if len(turns) != 3 || turns[0] != 0 || turns[1] != 1 || turns[2] != 0 {
@@ -307,7 +307,7 @@ func TestCallGeminiConvChangedHistoryOrScopeStartsFresh(t *testing.T) {
 				st.turn++
 				return &StreamResult{Raw: conversationTestRaw(t, "answer")}, nil
 			})
-			if _, _, _, err := callGeminiConv(first, mc, tools, choice, nil, nil, conversationOptions{requestScope: scope}); err != nil {
+			if _, _, _, err := callGeminiConv(first, mc, tools, choice, nil, nil, nil, conversationOptions{requestScope: scope}); err != nil {
 				t.Fatal(err)
 			}
 			next := []map[string]interface{}{{"role": "system", "content": "stable"}, {"role": "user", "content": "question"}, {"role": "assistant", "content": "answer"}, {"role": "user", "content": "next"}}
@@ -323,7 +323,7 @@ func TestCallGeminiConvChangedHistoryOrScopeStartsFresh(t *testing.T) {
 			case "scope":
 				scope = "two"
 			}
-			if _, _, _, err := callGeminiConv(next, mc, tools, choice, nil, nil, conversationOptions{requestScope: scope}); err != nil {
+			if _, _, _, err := callGeminiConv(next, mc, tools, choice, nil, nil, nil, conversationOptions{requestScope: scope}); err != nil {
 				t.Fatal(err)
 			}
 			if len(turns) != 2 || turns[1] != 0 {
@@ -346,14 +346,14 @@ func TestCallGeminiConvFailedContinuationIsNotReused(t *testing.T) {
 		}
 		return &StreamResult{Raw: conversationTestRaw(t, "answer")}, nil
 	})
-	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	next := append(append([]map[string]interface{}{}, first...), map[string]interface{}{"role": "assistant", "content": "answer"}, map[string]interface{}{"role": "user", "content": "next"})
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err == nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err == nil {
 		t.Fatal("expected upstream failure")
 	}
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if len(turns) != 3 || turns[1] != 1 || turns[2] != 0 {
@@ -374,14 +374,14 @@ func TestCallGeminiConvEmptyContinuationIsNotReused(t *testing.T) {
 		}
 		return &StreamResult{Raw: conversationTestRaw(t, "answer")}, nil
 	})
-	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(first, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	next := append(append([]map[string]interface{}{}, first...), map[string]interface{}{"role": "assistant", "content": "answer"}, map[string]interface{}{"role": "user", "content": "next"})
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err == nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err == nil {
 		t.Fatal("empty upstream result must fail")
 	}
-	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil); err != nil {
+	if _, _, _, err := callGeminiConv(next, mc, nil, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if len(turns) != 3 || turns[1] != 1 || turns[2] != 0 {
@@ -454,7 +454,7 @@ func TestCallGeminiConvSwitchesAccountWhenXSRFFails(t *testing.T) {
 	})
 	msgs := []map[string]interface{}{{"role": "user", "content": "hi"}}
 	for i := 0; i < 3; i++ {
-		text, _, _, err := callGeminiConv(msgs, mc, nil, nil, nil, nil)
+		text, _, _, err := callGeminiConv(msgs, mc, nil, nil, nil, nil, nil)
 		if err != nil || text != "ok" {
 			t.Fatalf("第 %d 次应换到好号成功，得到 text=%q err=%v（试过 %v）", i, text, err, tried)
 		}
@@ -485,7 +485,7 @@ func TestCallGeminiConvAllAccountsUnusable(t *testing.T) {
 		calls++
 		return &StreamResult{AccountID: st.accountID}, &convAccountUnusableError{AccountID: st.accountID, Err: errors.New("no SNlM0e in page")}
 	})
-	_, _, _, err := callGeminiConv([]map[string]interface{}{{"role": "user", "content": "hi"}}, Models["gemini-3.5-flash-lite"], nil, nil, nil, nil)
+	_, _, _, err := callGeminiConv([]map[string]interface{}{{"role": "user", "content": "hi"}}, Models["gemini-3.5-flash-lite"], nil, nil, nil, nil, nil)
 	var unusable *convAccountUnusableError
 	var mde *ModelDowngradedError
 	if !errors.As(err, &unusable) || errors.As(err, &mde) {
@@ -505,7 +505,7 @@ func TestCallGeminiConvAppendsUnrequestedMedia(t *testing.T) {
 			Artifacts: []MediaArtifact{{Mime: "image/png", Data: []byte("png")}}}, nil
 	})
 	text, _, _, err := callGeminiConv([]map[string]interface{}{{"role": "user", "content": "draw a cat"}},
-		Models["gemini-3.5-flash-lite"], nil, nil, nil, nil)
+		Models["gemini-3.5-flash-lite"], nil, nil, nil, nil, nil)
 	if err != nil || !strings.Contains(text, "Here is your image.") || !strings.Contains(text, "![image](data:image/png;base64,cG5n)") {
 		t.Fatalf("应返回正文加图片，得到 text=%q err=%v", text, err)
 	}
